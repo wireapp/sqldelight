@@ -31,7 +31,7 @@ configurations.instrumentationTestImplementation.extendsFrom(configurations.test
 gradlePlugin {
   plugins {
     sqlDelight {
-      id = 'app.cash.sqldelight'
+      id = 'com.wire.sqldelight'
       implementationClass = 'app.cash.sqldelight.gradle.SqlDelightPlugin'
     }
   }

@@ -15,6 +15,7 @@
  */
 package app.cash.sqldelight.gradle
 
+import app.cash.sqldelight.ARTIFACT_GROUP
 import app.cash.sqldelight.VERSION
 import app.cash.sqldelight.core.MINIMUM_SUPPORTED_VERSION
 import app.cash.sqldelight.core.SqlDelightPropertiesFile
@@ -92,8 +93,8 @@ abstract class SqlDelightPlugin : Plugin<Project> {
 
     val needsAsyncRuntime = extension.databases.any { it.generateAsync.get() }
     val runtimeDependencies = buildList {
-      add(project.dependencies.create("app.cash.sqldelight:runtime:$VERSION"))
-      if (needsAsyncRuntime) add(project.dependencies.create("app.cash.sqldelight:async-extensions:$VERSION"))
+      add(project.dependencies.create("$ARTIFACT_GROUP:runtime:$VERSION"))
+      if (needsAsyncRuntime) add(project.dependencies.create("$ARTIFACT_GROUP:async-extensions:$VERSION"))
     }
     addRuntimeDependencies(project, runtimeDependencies)
 
@@ -120,7 +121,7 @@ abstract class SqlDelightPlugin : Plugin<Project> {
           project.sqliteVersion()?.let(database::dialect)
         }
         if (!database.addedDialect) {
-          database.dialect("app.cash.sqldelight:sqlite-3-18-dialect:$VERSION")
+          database.dialect("$ARTIFACT_GROUP:sqlite-3-18-dialect:$VERSION")
         }
         database.registerTasks()
       }

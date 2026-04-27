@@ -1,5 +1,22 @@
+/*
+ * Modifications Copyright (C) 2026 Wire GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package app.cash.sqldelight.gradle
 
+import app.cash.sqldelight.ARTIFACT_GROUP
 import app.cash.sqldelight.VERSION
 import app.cash.sqldelight.core.capitalize
 import app.cash.sqldelight.core.lang.MIGRATION_EXTENSION
@@ -36,6 +53,7 @@ abstract class SqlDelightDatabase @Inject constructor(
   abstract val migrationOutputDirectory: DirectoryProperty
   val migrationOutputFileFormat: Property<String> = project.objects.property(String::class.java).convention(".sql")
   val generateAsync: Property<Boolean> = project.objects.property(Boolean::class.java).convention(false)
+  val enableCustomQueryKeys: Property<Boolean> = project.objects.property(Boolean::class.java).convention(false)
 
   val configurationName: String = "${name}DialectClasspath"
 
@@ -51,13 +69,13 @@ abstract class SqlDelightDatabase @Inject constructor(
   private val intellijEnv = project.configurations.create("${name}IntellijEnv").apply {
     isCanBeConsumed = false
     isVisible = false
-    dependencies.add(project.dependencies.create("app.cash.sqldelight:compiler-env:$VERSION"))
+    dependencies.add(project.dependencies.create("$ARTIFACT_GROUP:compiler-env:$VERSION"))
   }
 
   private val migrationEnv = project.configurations.create("${name}MigrationEnv").apply {
     isCanBeConsumed = false
     isVisible = false
-    dependencies.add(project.dependencies.create("app.cash.sqldelight:migration-env:$VERSION"))
+    dependencies.add(project.dependencies.create("$ARTIFACT_GROUP:migration-env:$VERSION"))
   }
 
   internal var addedDialect: Boolean = false
@@ -293,7 +311,7 @@ abstract class SqlDelightDatabase @Inject constructor(
 
       sqldelight {
         $name {
-          dialect("app.cash.sqldelight:sqlite-3-18-dialect:$VERSION")
+          dialect("$ARTIFACT_GROUP:sqlite-3-18-dialect:$VERSION")
         }
       }
           """.trimIndent(),
@@ -312,6 +330,8 @@ abstract class SqlDelightDatabase @Inject constructor(
             treatNullAsUnknownForEquality = treatNullAsUnknownForEquality.get(),
             generateAsync = generateAsync.get(),
             expandSelectStar = expandSelectStar.get(),
+            enableCustomQueryKeys = enableCustomQueryKeys.get(),
+            enableCustomQueryKeys = enableCustomQueryKeys.get(),
           )
         }
       } finally {

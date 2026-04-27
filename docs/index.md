@@ -95,7 +95,7 @@ Documentation pages for the latest snapshot version can be [found here](https://
     
     // build.gradle.kts
     plugins {
-        id("app.cash.sqldelight") version "SNAPSHOT-VERSION"
+        id("com.wire.sqldelight") version "SNAPSHOT-VERSION"
     }
     
     repositories {
@@ -114,7 +114,7 @@ Documentation pages for the latest snapshot version can be [found here](https://
     
     // build.gradle
     plugins {
-        id "app.cash.sqldelight" version "SNAPSHOT-VERSION"
+        id "com.wire.sqldelight" version "SNAPSHOT-VERSION"
     }
     
     repositories {

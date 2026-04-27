@@ -1,5 +1,6 @@
 package app.cash.sqldelight.gradle.android
 
+import app.cash.sqldelight.ARTIFACT_GROUP
 import app.cash.sqldelight.VERSION
 import com.android.build.api.dsl.CommonExtension
 import org.gradle.api.GradleException
@@ -31,8 +32,8 @@ internal fun Project.sqliteVersion(): String? {
   val minSdk = androidExtension.defaultConfig.minSdk ?: return null
 
   // Mapping available at https://developer.android.com/reference/android/database/sqlite/package-summary.
-  if (minSdk >= 34) return "app.cash.sqldelight:sqlite-3-38-dialect:$VERSION"
-  if (minSdk >= 31) return "app.cash.sqldelight:sqlite-3-30-dialect:$VERSION"
-  if (minSdk >= 30) return "app.cash.sqldelight:sqlite-3-25-dialect:$VERSION"
-  return "app.cash.sqldelight:sqlite-3-18-dialect:$VERSION"
+  if (minSdk >= 34) return "$ARTIFACT_GROUP:sqlite-3-38-dialect:$VERSION"
+  if (minSdk >= 31) return "$ARTIFACT_GROUP:sqlite-3-30-dialect:$VERSION"
+  if (minSdk >= 30) return "$ARTIFACT_GROUP:sqlite-3-25-dialect:$VERSION"
+  return "$ARTIFACT_GROUP:sqlite-3-18-dialect:$VERSION"
 }
