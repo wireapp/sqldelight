@@ -14,6 +14,9 @@ abstract class PluginVersion : DefaultTask() {
   @get:Input
   val version: String = project.version.toString()
 
+  @get:Input
+  val artifactGroup: String = project.group.toString()
+
   @get:OutputDirectory
   val outputDir: Provider<Directory> = project.layout.buildDirectory.dir("gen")
 
@@ -28,6 +31,7 @@ abstract class PluginVersion : DefaultTask() {
 package app.cash.sqldelight
 
 val VERSION = "$version"
+val ARTIFACT_GROUP = "$artifactGroup"
 """,
     )
   }

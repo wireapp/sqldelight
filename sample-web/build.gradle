@@ -1,6 +1,6 @@
 plugins {
   alias(libs.plugins.kotlin.multiplatform)
-  id("app.cash.sqldelight")
+  id("com.wire.sqldelight")
 }
 
 sqldelight {
