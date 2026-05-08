@@ -235,6 +235,27 @@ Defaults to `false`.
 
 ----
 
+### `enableCustomQueryKeys`
+
+Type: `Property<Boolean>`
+
+If set to `true`, SQLDelight enables custom query notification keys declared in SQL comments.
+Queries can declare `@CustomKey` keys, and mutations can declare `@NotifyCustomKey` keys.
+When custom keys are present, they are used instead of table-name keys for notifications.
+
+Defaults to `false`.
+
+=== "Kotlin"
+    ```kotlin
+    enableCustomQueryKeys.set(true)
+    ```
+=== "Groovy"
+    ```groovy
+    enableCustomQueryKeys = true
+    ```
+
+----
+
 ### `deriveSchemaFromMigrations`
 
 Type: `Property<Boolean>`
