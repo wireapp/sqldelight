@@ -44,4 +44,36 @@ statements.
     running queries instead of the blocking `executeAs*()` functions.
 {% endif %}
 
+## Custom Query Keys
+
+By default, SQLDelight uses observed table names as query listener keys.
+You can opt into custom keys for finer-grained invalidation.
+
+First, enable the feature in Gradle with `enableCustomQueryKeys = true` (or `enableCustomQueryKeys.set(true)` in Kotlin DSL).
+
+Then annotate SQL statements with comments:
+
+```sql
+selectConversationMessages:
+-- @CustomKey conversation_:conversation_id
+SELECT id, conversation_id, content
+FROM message
+WHERE conversation_id = :conversation_id;
+
+insertMessage:
+-- @NotifyCustomKey conversation_:conversation_id
+INSERT INTO message (id, conversation_id, content)
+VALUES (?, ?, ?);
+```
+
+How it works:
+
+- `@CustomKey` defines the key(s) a query listens to.
+- `@NotifyCustomKey` defines the key(s) a mutation notifies.
+- If custom keys are present, SQLDelight uses them instead of table-name notifications.
+- Queries with `@CustomKey` are not invalidated by table-name notifications.
+- `:parameter_name` inside a key expression interpolates the matching query or mutation parameter value.
+- Use `\:` for a literal colon and `\\` for a literal backslash in key text.
+- Referencing an unknown parameter fails compilation.
+
 And that's it! Check out the other pages on the sidebar for other functionality.

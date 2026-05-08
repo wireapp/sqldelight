@@ -1,3 +1,19 @@
+/*
+ * Modifications Copyright (C) 2026 Wire GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package app.cash.sqldelight.tests
 
 import app.cash.sqldelight.gradle.SqlDelightCompilationUnitImpl
@@ -428,6 +444,48 @@ class CompilationUnitTests {
             outputDirectoryFile = File(fixtureRoot, "build/generated/sqldelight/code/CommonDb/minApi21FullSqldelight"),
           ),
         )
+      }
+    }
+  }
+
+  @Test
+  fun `custom query keys flag propagation`() {
+    withTemporaryFixture {
+      gradleFile(
+        """
+        |plugins {
+        |  alias(libs.plugins.kotlin.jvm)
+        |  alias(libs.plugins.sqldelight)
+        |}
+        |
+        |sqldelight {
+        |  databases {
+        |    DefaultDb {
+        |      packageName = "com.sample"
+        |    }
+        |
+        |    CustomKeyDb {
+        |      packageName = "com.sample.customkeys"
+        |      enableCustomQueryKeys = true
+        |    }
+        |  }
+        |}
+        """.trimMargin(),
+      )
+
+      properties().let { properties ->
+        assertThat(properties.databases).hasSize(2)
+
+        val defaultDb = properties.databases.first { it.className == "DefaultDb" }
+        val customKeyDb = properties.databases.first { it.className == "CustomKeyDb" }
+
+        // Verify DefaultDb has custom keys disabled (default)
+        assertThat(defaultDb.packageName).isEqualTo("com.sample")
+        assertThat(defaultDb.enableCustomQueryKeys).isFalse()
+
+        // Verify CustomKeyDb has custom keys enabled
+        assertThat(customKeyDb.packageName).isEqualTo("com.sample.customkeys")
+        assertThat(customKeyDb.enableCustomQueryKeys).isTrue()
       }
     }
   }

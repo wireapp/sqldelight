@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2018 Square, Inc.
+ * Modifications Copyright (C) 2026 Wire GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +25,7 @@ interface SqlDelightProjectService {
   var dialect: SqlDelightDialect
   var treatNullAsUnknownForEquality: Boolean
   var generateAsync: Boolean
+  var enableCustomQueryKeys: Boolean
 
   fun setDialect(dialect: SqlDelightDialect, shouldInvalidate: Boolean) {
     this.dialect = dialect

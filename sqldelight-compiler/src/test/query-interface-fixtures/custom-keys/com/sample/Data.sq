@@ -1,0 +1,59 @@
+-- Copyright (C) 2026 Wire GmbH
+--
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
+--
+--      http://www.apache.org/licenses/LICENSE-2.0
+--
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
+
+CREATE TABLE message (
+  id TEXT NOT NULL PRIMARY KEY,
+  conversation_id TEXT NOT NULL,
+  sender_user_id TEXT NOT NULL,
+  content TEXT NOT NULL
+);
+
+CREATE TABLE user (
+  qualified_id TEXT NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL
+);
+
+-- Test literal custom key
+selectAllUsers:
+-- @CustomKey all_users
+SELECT * FROM user;
+
+-- Test template custom key with single parameter
+selectConversationMessages:
+-- @CustomKey conversation_:conversation_id
+SELECT message.id, message.conversation_id, user.name AS sender_name, message.content
+FROM message
+JOIN user ON message.sender_user_id = user.qualified_id
+WHERE message.conversation_id = :conversation_id;
+
+-- Test multiple custom keys
+selectUserInConversation:
+-- @CustomKey conversation_:conversation_id
+-- @CustomKey user_:user_id
+SELECT * FROM message
+WHERE conversation_id = :conversation_id AND sender_user_id = :user_id;
+
+-- Test mutation with custom notify key
+insertMessage:
+-- @NotifyCustomKey conversation_:conversation_id
+INSERT INTO message (id, content, conversation_id, sender_user_id)
+VALUES (?, ?, ?, ?);
+
+-- Test mutation with multiple notify keys
+updateMessage:
+-- @NotifyCustomKey conversation_:conversation_id
+-- @NotifyCustomKey message_:id
+UPDATE message
+SET content = :content
+WHERE id = :id;

@@ -1,7 +1,24 @@
+/*
+ * Modifications Copyright (C) 2026 Wire GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package app.cash.sqldelight.core.compiler
 
 import app.cash.sqldelight.core.compiler.integration.javadocText
 import app.cash.sqldelight.core.compiler.model.BindableQuery
+import app.cash.sqldelight.core.compiler.model.CustomKeyExpression
 import app.cash.sqldelight.core.compiler.model.NamedMutator
 import app.cash.sqldelight.core.compiler.model.NamedQuery
 import app.cash.sqldelight.core.lang.ASYNC_RESULT_TYPE
@@ -38,6 +55,7 @@ import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.NameAllocator
 import com.squareup.kotlinpoet.buildCodeBlock
+import com.squareup.kotlinpoet.joinToCode
 
 abstract class QueryGenerator(
   private val query: BindableQuery,
@@ -369,19 +387,43 @@ abstract class QueryGenerator(
   }
 
   protected fun notifyQueriesBlock(): CodeBlock {
-    if (tablesUpdated().isEmpty()) return CodeBlock.builder().build()
-
-    // The list of affected tables:
-    // notifyQueries { emit ->
-    //     emit("players")
-    //     emit("teams")
-    // }
     return buildCodeBlock {
-      beginControlFlow("notifyQueries(%L) { emit ->", query.id)
-      for (table in tablesUpdated().sortedBy(TableNameElement::name)) {
-        add("emit(\"${table.name}\")\n")
+      // Notify custom keys if present
+      val hasCustomKeys = query is NamedMutator && query.customNotifyKeys != null
+
+      if (hasCustomKeys) {
+        query.customNotifyKeys!!.forEach { expr ->
+          addStatement("$DRIVER_NAME.notifyListeners(%L)", customKeyExpressionCode(expr))
+        }
+      } else if (tablesUpdated().isNotEmpty()) {
+        // Only notify table-based listeners when custom keys are not used
+        beginControlFlow("notifyQueries(%L) { emit ->", query.id)
+        for (table in tablesUpdated().sortedBy(TableNameElement::name)) {
+          add("emit(\"${table.name}\")\n")
+        }
+        endControlFlow()
       }
-      endControlFlow()
+    }
+  }
+
+  protected fun customKeyExpressionCode(expression: CustomKeyExpression): CodeBlock {
+    return when (expression) {
+      is CustomKeyExpression.Literal -> CodeBlock.of("%S", expression.value)
+      is CustomKeyExpression.Template -> {
+        val parts = expression.parts.mapNotNull { part ->
+          when (part) {
+            is CustomKeyExpression.Template.Part.Text -> {
+              if (part.value.isEmpty()) null else CodeBlock.of("%S", part.value)
+            }
+            is CustomKeyExpression.Template.Part.Parameter -> CodeBlock.of("%N", part.name)
+          }
+        }
+        when (parts.size) {
+          0 -> CodeBlock.of("%S", "")
+          1 -> parts.single()
+          else -> parts.joinToCode(separator = " + ")
+        }
+      }
     }
   }
 

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 Square, Inc.
+ * Modifications Copyright (C) 2026 Wire GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -100,6 +101,8 @@ class SqlDelightEnvironment(
   override var treatNullAsUnknownForEquality: Boolean = properties.treatNullAsUnknownForEquality
 
   override var generateAsync: Boolean = properties.generateAsync
+
+  override var enableCustomQueryKeys: Boolean = properties.enableCustomQueryKeys
 
   override fun module(vFile: VirtualFile) = module
 
