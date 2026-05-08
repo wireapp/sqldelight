@@ -76,6 +76,7 @@ data class SqlDelightDatabasePropertiesModel(
   override val generateAsync: Boolean = false,
   override val rootDirectory: File,
   override val expandSelectStar: Boolean = true,
+  override val enableCustomQueryKeys: Boolean = false,
 ) : SqlDelightDatabaseProperties
 
 data class SqlDelightDatabaseNameModel(

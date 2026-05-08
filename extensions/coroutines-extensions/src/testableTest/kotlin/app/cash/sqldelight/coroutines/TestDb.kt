@@ -1,3 +1,19 @@
+/*
+ * Modifications Copyright (C) 2026 Wire GmbH
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package app.cash.sqldelight.coroutines
 
 import app.cash.sqldelight.Query
@@ -25,6 +41,9 @@ class TestDb(
 
     db.execute(null, CREATE_MANAGER, 0).await()
     manager(eveId, aliceId)
+
+    // Initialize message table for custom key tests
+    db.execute(null, CREATE_MESSAGE, 0).await()
   }
 
   fun <T : Any> createQuery(key: String, query: String, mapper: (SqlCursor) -> T): Query<T> {
@@ -47,8 +66,89 @@ class TestDb(
     db.notifyListeners(key)
   }
 
+  fun notifyCustomKey(customKey: String) {
+    db.notifyListeners(customKey)
+  }
+
   override fun close() {
     db.close()
+  }
+
+  suspend fun insertMessage(message: Message): Long {
+    db.await(
+      3,
+      """
+      |INSERT INTO $TABLE_MESSAGE (${Message.ID}, ${Message.CONVERSATION_ID}, ${Message.CONTENT}, ${Message.SENDER_ID})
+      |VALUES (?, ?, ?, ?)
+      |
+      """.trimMargin(),
+      4,
+    ) {
+      bindString(0, message.id)
+      bindString(1, message.conversationId)
+      bindString(2, message.content)
+      bindString(3, message.senderId)
+    }
+    // Notify with custom key pattern
+    notify("conversation_${message.conversationId}")
+    return transactionWithResult {
+      val mapper: (SqlCursor) -> QueryResult<Long> = {
+        it.next()
+        QueryResult.Value(it.getLong(0)!!)
+      }
+      db.executeQuery(2, "SELECT last_insert_rowid()", mapper, 0).await()
+    }
+  }
+
+  suspend fun insertMessageWithSender(message: Message): Long {
+    db.await(
+      4,
+      """
+      |INSERT INTO $TABLE_MESSAGE (${Message.ID}, ${Message.CONVERSATION_ID}, ${Message.CONTENT}, ${Message.SENDER_ID})
+      |VALUES (?, ?, ?, ?)
+      |
+      """.trimMargin(),
+      4,
+    ) {
+      bindString(0, message.id)
+      bindString(1, message.conversationId)
+      bindString(2, message.content)
+      bindString(3, message.senderId)
+    }
+    // Notify with user custom key pattern
+    notify("user_${message.senderId}")
+    return transactionWithResult {
+      val mapper: (SqlCursor) -> QueryResult<Long> = {
+        it.next()
+        QueryResult.Value(it.getLong(0)!!)
+      }
+      db.executeQuery(2, "SELECT last_insert_rowid()", mapper, 0).await()
+    }
+  }
+
+  suspend fun insertMessageWithCustomKey(message: Message, customKey: String): Long {
+    db.await(
+      5,
+      """
+      |INSERT INTO $TABLE_MESSAGE (${Message.ID}, ${Message.CONVERSATION_ID}, ${Message.CONTENT})
+      |VALUES (?, ?, ?)
+      |
+      """.trimMargin(),
+      3,
+    ) {
+      bindString(0, message.id)
+      bindString(1, message.conversationId)
+      bindString(2, message.content)
+    }
+    // Notify ONLY the custom key, not the table
+    notify(customKey)
+    return transactionWithResult {
+      val mapper: (SqlCursor) -> QueryResult<Long> = {
+        it.next()
+        QueryResult.Value(it.getLong(0)!!)
+      }
+      db.executeQuery(2, "SELECT last_insert_rowid()", mapper, 0).await()
+    }
   }
 
   suspend fun employee(employee: Employee): Long {
@@ -105,6 +205,7 @@ class TestDb(
   companion object {
     const val TABLE_EMPLOYEE = "employee"
     const val TABLE_MANAGER = "manager"
+    const val TABLE_MESSAGE = "message"
 
     val CREATE_EMPLOYEE = """
       |CREATE TABLE $TABLE_EMPLOYEE (
@@ -121,6 +222,38 @@ class TestDb(
       |  ${Manager.MANAGER_ID} INTEGER NOT NULL REFERENCES $TABLE_EMPLOYEE(${Employee.ID})
       |)
     """.trimMargin()
+
+    val CREATE_MESSAGE = """
+      |CREATE TABLE $TABLE_MESSAGE (
+      |  ${Message.ID} TEXT NOT NULL PRIMARY KEY,
+      |  ${Message.CONVERSATION_ID} TEXT NOT NULL,
+      |  ${Message.CONTENT} TEXT NOT NULL,
+      |  ${Message.SENDER_ID} TEXT
+      |)
+    """.trimMargin()
+  }
+}
+
+data class Message(
+  val id: String,
+  val conversationId: String,
+  val content: String,
+  val senderId: String? = null,
+) {
+  companion object {
+    const val ID = "id"
+    const val CONVERSATION_ID = "conversation_id"
+    const val CONTENT = "content"
+    const val SENDER_ID = "sender_id"
+
+    val MAPPER = { cursor: SqlCursor ->
+      Message(
+        id = cursor.getString(0)!!,
+        conversationId = cursor.getString(1)!!,
+        content = cursor.getString(2)!!,
+        senderId = cursor.getString(3),
+      )
+    }
   }
 }
 
