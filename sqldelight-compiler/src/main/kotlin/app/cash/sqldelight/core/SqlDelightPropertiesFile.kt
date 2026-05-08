@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2018 Square, Inc.
+ * Modifications Copyright (C) 2026 Wire GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,6 +42,7 @@ interface SqlDelightDatabaseOptions : Serializable {
   val generateAsync: Boolean
   val expandSelectStar: Boolean
   val codegenExcludedColumns: Set<String>
+  val enableCustomQueryKeys: Boolean
 }
 
 interface SqlDelightDatabaseProperties : SqlDelightDatabaseOptions {

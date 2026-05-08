@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 Square, Inc.
+ * Modifications Copyright (C) 2026 Wire GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +23,9 @@ import app.cash.sqldelight.core.lang.SqlDelightQueriesFile
 import app.cash.sqldelight.core.lang.cursorGetter
 import app.cash.sqldelight.core.lang.parentAdapter
 import app.cash.sqldelight.core.lang.psi.StmtIdentifierMixin
+import app.cash.sqldelight.core.lang.util.CustomKeyAnnotation
 import app.cash.sqldelight.core.lang.util.TableNameElement
+import app.cash.sqldelight.core.lang.util.customKeyAnnotations
 import app.cash.sqldelight.core.lang.util.filterCodegenExcludedColumns
 import app.cash.sqldelight.core.lang.util.name
 import app.cash.sqldelight.core.lang.util.sqFile
@@ -174,6 +177,40 @@ data class NamedQuery(
     } else {
       null
     }
+  }
+
+  /**
+   * Custom query keys specified via @CustomKey annotations.
+   * When present, these override the default table-based keys.
+   */
+  internal val customKeys: List<CustomKeyExpression>? by lazy {
+    extractCustomKeys()
+  }
+
+  private fun extractCustomKeys(): List<CustomKeyExpression>? {
+    // Check if feature is enabled
+    if (!statement.sqFile().enableCustomQueryKeys) return null
+
+    val annotations = statement.customKeyAnnotations()
+      .filter { it.annotationType == CustomKeyAnnotation.AnnotationType.CUSTOM_KEY }
+
+    if (annotations.isEmpty()) return null
+
+    // Validate that all referenced parameters exist in the query
+    val queryParams = parameters.map { it.name }.toSet()
+    annotations.forEach { annotation ->
+      annotation.expression.referencedParameters().forEach { paramName ->
+        if (paramName !in queryParams) {
+          throw AnnotationException(
+            msg = "Custom key references unknown parameter ':$paramName' in query '$name'. " +
+              "Available parameters: ${queryParams.sorted().joinToString(", ") { ":$it" }}",
+            element = annotation.element,
+          )
+        }
+      }
+    }
+
+    return annotations.map { it.expression }
   }
 
   internal val customQuerySubtype = "${name.capitalize()}Query"

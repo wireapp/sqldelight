@@ -337,6 +337,18 @@ abstract class BaseTransacterImpl(protected val driver: SqlDriver) {
   }
 
   /**
+   * For internal use, notifies the listeners for the provided query keys.
+   */
+  protected fun notifyQueries(vararg queryKeys: String) {
+    val transaction = driver.currentTransaction()
+    if (transaction != null) {
+      transaction.pendingTables.addAll(queryKeys)
+    } else {
+      driver.notifyListeners(queryKeys = queryKeys)
+    }
+  }
+
+  /**
    * For internal use, creates a string in the format (?, ?, ?) where there are [count] question marks.
    */
   protected fun createArguments(count: Int): String {

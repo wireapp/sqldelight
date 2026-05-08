@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 Square, Inc.
+ * Modifications Copyright (C) 2026 Wire GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +17,7 @@
 package app.cash.sqldelight.core.compiler
 
 import app.cash.sqldelight.core.compiler.SqlDelightCompiler.allocateName
+import app.cash.sqldelight.core.compiler.model.CustomKeyExpression
 import app.cash.sqldelight.core.compiler.model.NamedQuery
 import app.cash.sqldelight.core.lang.ADAPTER_NAME
 import app.cash.sqldelight.core.lang.CURSOR_NAME
@@ -203,23 +205,34 @@ class SelectQueryGenerator(
 
       mapperLambda.unindent().add("}\n")
 
-      val tablesObserved = query.tablesObserved
-      if (tablesObserved.isNullOrEmpty()) {
+      // Determine which keys to use: custom keys override table keys
+      // Note: Only use tablesObserved for keys in the inline path (not tablesUpdated)
+      val keys = if (query.customKeys != null) {
+        customQueryKeys(query.customKeys!!)
+      } else if (!query.tablesObserved.isNullOrEmpty()) {
+        queryKeys(query.tablesObserved!!)
+      } else {
+        null
+      }
+
+      if (keys != null) {
+        // Query with keys (custom or table-based)
         function.addCode(
-          "return %T(%L, $DRIVER_NAME, %S, %S, %S)%L",
+          "return %T(%L, %L, $DRIVER_NAME, %S, %S, %S)%L",
           QUERY_TYPE,
           query.id,
+          keys,
           query.statement.containingFile.name,
           query.name,
           query.statement.rawSqlText(),
           mapperLambda.build(),
         )
       } else {
+        // Query without keys - use Query constructor without keys parameter
         function.addCode(
-          "return %T(%L, %L, $DRIVER_NAME, %S, %S, %S)%L",
+          "return %T(%L, $DRIVER_NAME, %S, %S, %S)%L",
           QUERY_TYPE,
           query.id,
-          queryKeys(tablesObserved),
           query.statement.containingFile.name,
           query.name,
           query.statement.rawSqlText(),
@@ -245,11 +258,25 @@ class SelectQueryGenerator(
    * Add the table listener array: arrayOf("table1", "table2")
    */
   private fun queryKeys(tablesObserved: List<TableNameElement>): CodeBlock {
-    return tablesObserved.map { CodeBlock.of("\"${it.name}\"") }
+    return tablesObserved.map { CodeBlock.of("%S", it.name) }
       .joinToCode(", ", prefix = "arrayOf(", suffix = ")")
   }
 
-  private fun NamedQuery.supertype() = if (tablesObserved.isNullOrEmpty()) {
+  /**
+   * Generates the custom key array from CustomKeyExpression list.
+   *
+   * Example input: [Template("conversation_:conversation_id")]
+   * Example output: arrayOf("conversation_$conversationId")
+   */
+  private fun customQueryKeys(customKeys: List<CustomKeyExpression>): CodeBlock {
+    val keyExpressions = customKeys.map(::customKeyExpressionCode)
+
+    return keyExpressions.joinToCode(", ", prefix = "arrayOf(", suffix = ")")
+  }
+
+  private fun NamedQuery.supertype() = if (tablesObserved.isNullOrEmpty() && customKeys == null) {
+    // Use EXECUTABLE_QUERY_TYPE only if there are no custom keys AND no tables observed
+    // Note: queries with tablesUpdated() (like INSERT RETURNING) will use the keys from tablesUpdated
     EXECUTABLE_QUERY_TYPE
   } else {
     QUERY_TYPE
@@ -314,20 +341,27 @@ class SelectQueryGenerator(
     )
     queryType.addSuperclassConstructorParameter(MAPPER_NAME)
 
-    if (!query.tablesObserved.isNullOrEmpty()) {
+    // Generate addListener/removeListener if we have keys (custom or table-based)
+    if (query.customKeys != null || !query.tablesObserved.isNullOrEmpty()) {
+      val listenerKeys = if (query.customKeys != null) {
+        query.customKeys!!.map(::customKeyExpressionCode)
+      } else {
+        query.tablesObserved!!.map { CodeBlock.of("%S", it.name) }
+      }.joinToCode(separator = ", ")
+
       queryType
         .addFunction(
           FunSpec.builder("addListener")
             .addModifiers(OVERRIDE)
             .addParameter("listener", QUERY_LISTENER_TYPE)
-            .addStatement("driver.addListener(${query.tablesObserved!!.joinToString { "\"${it.name}\"" }}, listener = listener)")
+            .addStatement("driver.addListener(%L, listener = listener)", listenerKeys)
             .build(),
         )
         .addFunction(
           FunSpec.builder("removeListener")
             .addModifiers(OVERRIDE)
             .addParameter("listener", QUERY_LISTENER_TYPE)
-            .addStatement("driver.removeListener(${query.tablesObserved!!.joinToString { "\"${it.name}\"" }}, listener = listener)")
+            .addStatement("driver.removeListener(%L, listener = listener)", listenerKeys)
             .build(),
         )
     }

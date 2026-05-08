@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 Square, Inc.
+ * Modifications Copyright (C) 2026 Wire GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,5 +55,9 @@ class QueryAssert(private val cursor: SqlCursor) {
     for (i in values.indices) {
       assertEquals(values[i], cursor.getString(i), "row $row column '$i'")
     }
+  }
+
+  fun isEmpty() {
+    assertEquals(0, row, "Expected no rows but had $row rows")
   }
 }

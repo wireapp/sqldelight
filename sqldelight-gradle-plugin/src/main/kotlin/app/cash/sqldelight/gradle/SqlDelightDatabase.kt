@@ -417,7 +417,6 @@ abstract class SqlDelightDatabase @Inject constructor(
             expandSelectStar = expandSelectStar.get(),
             codegenExcludedColumns = codegenExcludedColumns.get(),
             enableCustomQueryKeys = enableCustomQueryKeys.get(),
-            enableCustomQueryKeys = enableCustomQueryKeys.get(),
           )
         }
       }

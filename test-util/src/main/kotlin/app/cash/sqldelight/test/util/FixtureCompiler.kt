@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 Square, Inc.
+ * Modifications Copyright (C) 2026 Wire GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,6 +46,7 @@ object FixtureCompiler {
     generateAsync: Boolean = false,
     codegenExcludedColumns: Set<String> = emptySet(),
     moduleName: String = "testmodule",
+    enableCustomQueryKeys: Boolean = false,
   ): CompilationResult {
     writeSql(sql, temporaryFolder, fileName)
     return compileFixture(
@@ -55,6 +57,7 @@ object FixtureCompiler {
       generateAsync = generateAsync,
       codegenExcludedColumns = codegenExcludedColumns,
       moduleName = moduleName,
+      enableCustomQueryKeys = enableCustomQueryKeys,
     )
   }
 
@@ -80,6 +83,7 @@ object FixtureCompiler {
     treatNullAsUnknownForEquality: Boolean = false,
     generateAsync: Boolean = false,
     codegenExcludedColumns: Set<String> = emptySet(),
+    enableCustomQueryKeys: Boolean = false,
   ): SqlDelightQueriesFile {
     writeSql(sql, temporaryFolder, fileName)
     val errors = mutableListOf<String>()
@@ -88,6 +92,7 @@ object FixtureCompiler {
       treatNullAsUnknownForEquality = treatNullAsUnknownForEquality,
       generateAsync = generateAsync,
       codegenExcludedColumns = codegenExcludedColumns,
+      enableCustomQueryKeys = enableCustomQueryKeys,
     )
     val environment = parser.build(
       temporaryFolder.fixtureRoot().path,
@@ -118,6 +123,7 @@ object FixtureCompiler {
     generateAsync: Boolean = false,
     codegenExcludedColumns: Set<String> = emptySet(),
     moduleName: String = "testmodule",
+    enableCustomQueryKeys: Boolean = false,
   ): CompilationResult {
     val compilerOutput = mutableMapOf<File, StringBuilder>()
     val errors = mutableListOf<String>()
@@ -129,6 +135,7 @@ object FixtureCompiler {
       dialect = overrideDialect,
       generateAsync = generateAsync,
       codegenExcludedColumns = codegenExcludedColumns,
+      enableCustomQueryKeys = enableCustomQueryKeys,
     )
     val fixtureRootDir = File(fixtureRoot)
     require(fixtureRootDir.exists()) { "$fixtureRoot does not exist" }

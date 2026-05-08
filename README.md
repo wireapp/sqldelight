@@ -1,5 +1,7 @@
 # <img src="docs/images/icon-sqldelight.svg" style="height: 1em; margin-bottom: -0.1em;"> SQLDelight
 
+> **Wire Fork** — This is a fork of [SQLDelight](https://github.com/sqldelight/SQLDelight) originally by Square, maintained by [Wire](https://github.com/wireapp) to add additional features (custom query keys and notifications). The original project is licensed under the Apache License 2.0.
+
 See the [project website](https://sqldelight.github.io/sqldelight/) for documentation and APIs
 
 SQLDelight generates typesafe Kotlin APIs from your SQL statements. It verifies your schema, statements, and migrations at compile-time and provides IDE features like autocomplete and refactoring which make writing and maintaining SQL simple.
@@ -47,6 +49,7 @@ License
 =======
 
     Copyright 2016 Square, Inc.
+    Modifications Copyright 2026 Wire GmbH
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2018 Square, Inc.
+ * Modifications Copyright (C) 2026 Wire GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -168,6 +169,7 @@ class ProjectService(val project: Project) :
   override var expandSelectStar: Boolean = true
 
   override var codegenExcludedColumns: Set<String> = emptySet()
+  override var enableCustomQueryKeys: Boolean = false
 
   override var dialect: SqlDelightDialect = MissingDialect()
 
