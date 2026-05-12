@@ -10,6 +10,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  ORG_GRADLE_PROJECT_VERSION_NAME: ${{ github.ref_name }}
   ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALUSERNAME }}
   ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALPASSWORD }}
   ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYID }}
@@ -80,7 +81,7 @@ jobs:
           cache-cleanup: always
 
       - name: Get Version
-        run: cat gradle.properties | grep --color=never VERSION_NAME >> $GITHUB_OUTPUT
+        run: echo "VERSION_NAME=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
         id: version
 
       - name: Assemble NPM Packages

@@ -16,6 +16,7 @@
 
 package app.cash.sqldelight.gradle
 
+import app.cash.sqldelight.ARTIFACT_GROUP
 import app.cash.sqldelight.VERSION
 import app.cash.sqldelight.core.capitalize
 import app.cash.sqldelight.core.lang.MIGRATION_EXTENSION
@@ -64,13 +65,13 @@ abstract class SqlDelightDatabase @Inject constructor(
   private val intellijEnv = project.configurations.create("${name}IntellijEnv").apply {
     isCanBeConsumed = false
     isVisible = false
-    dependencies.add(project.dependencies.create("app.cash.sqldelight:compiler-env:$VERSION"))
+    dependencies.add(project.dependencies.create("$ARTIFACT_GROUP:compiler-env:$VERSION"))
   }
 
   private val migrationEnv = project.configurations.create("${name}MigrationEnv").apply {
     isCanBeConsumed = false
     isVisible = false
-    dependencies.add(project.dependencies.create("app.cash.sqldelight:migration-env:$VERSION"))
+    dependencies.add(project.dependencies.create("$ARTIFACT_GROUP:migration-env:$VERSION"))
   }
 
   internal var addedDialect: Boolean = false
@@ -171,7 +172,7 @@ abstract class SqlDelightDatabase @Inject constructor(
 
       sqldelight {
         $name {
-          dialect("app.cash.sqldelight:sqlite-3-18-dialect:$VERSION")
+          dialect("$ARTIFACT_GROUP:sqlite-3-18-dialect:$VERSION")
         }
       }
         """.trimIndent(),
