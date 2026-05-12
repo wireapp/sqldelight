@@ -2,7 +2,7 @@ pluginManagement {
   resolutionStrategy {
     eachPlugin {
       if (requested.id.namespace == 'com.wire') {
-        useModule('com.wire:gradle-plugin:+')
+        useModule('com.wire.sqldelight:gradle-plugin:+')
       }
     }
   }
@@ -60,7 +60,7 @@ includeBuild('..') {
     substitute module("app.cash.sqldelight:native-driver") using project(":drivers:native-driver")
     substitute module("app.cash.sqldelight:runtime") using project(":runtime")
     substitute module("app.cash.sqldelight:runtime-jvm") using project(":runtime")
-    substitute module("com.wire:gradle-plugin") using project(":sqldelight-gradle-plugin")
+    substitute module("com.wire.sqldelight:gradle-plugin") using project(":sqldelight-gradle-plugin")
     substitute module("app.cash.sqldelight:sqlite-3-18-dialect") using project(":dialects:sqlite-3-18")
     substitute module("app.cash.sqldelight:compiler-env") using project(":sqldelight-compiler:environment")
     substitute module("app.cash.sqldelight:migration-env") using project(":sqlite-migrations:environment")

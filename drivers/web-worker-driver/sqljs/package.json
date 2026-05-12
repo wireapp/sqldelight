@@ -1,6 +1,6 @@
 {
   "description": "A SQL.js implementation of SQLDelight's web-worker-driver",
-  "homepage": "https://github.com/sqldelight/sqldelight#readme",
+  "homepage": "https://github.com/wireapp/sqldelight#readme",
   "license": "Apache-2.0",
   "keywords": [
     "sqljs",
@@ -8,14 +8,14 @@
     "sql"
   ],
   "bugs": {
-    "url": "https://github.com/sqldelight/sqldelight/issues"
+    "url": "https://github.com/wireapp/sqldelight/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sqldelight/sqldelight.git"
+    "url": "git+https://github.com/wireapp/sqldelight.git"
   },
   "version": "0.0.0",
-  "name": "@cashapp/sqldelight-sqljs-worker",
+  "name": "@wireapp/sqldelight-sqljs-worker",
   "peerDependencies": {
     "sql.js": "^1.8.0"
   }

@@ -34,6 +34,9 @@ jobs:
         with:
           cache-cleanup: always
 
+      - name: Set version from tag
+        run: echo "ORG_GRADLE_PROJECT_VERSION_NAME=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
       - run: ./gradlew publishToMavenLocal
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALUSERNAME }}
@@ -50,7 +53,7 @@ jobs:
 
   publish_npm_packages:
     runs-on: ubuntu-latest
-    if: github.repository == 'wireapp/sqldelight'
+    if: false
     permissions:
       contents: read
       id-token: write
@@ -80,7 +83,7 @@ jobs:
           cache-cleanup: always
 
       - name: Get Version
-        run: cat gradle.properties | grep --color=never VERSION_NAME >> $GITHUB_OUTPUT
+        run: echo "VERSION_NAME=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
         id: version
 
       - name: Assemble NPM Packages
@@ -101,7 +104,6 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     needs:
       - publish_archives
-      - publish_npm_packages
     steps:
       - uses: actions/checkout@v6
 

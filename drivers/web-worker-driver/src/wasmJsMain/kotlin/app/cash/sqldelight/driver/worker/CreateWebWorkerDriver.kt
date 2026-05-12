@@ -7,4 +7,4 @@ actual fun createDefaultWebWorkerDriver(): SqlDriver {
   return WebWorkerDriver(jsWorker())
 }
 
-internal fun jsWorker(): Worker = js("""new Worker(new URL("@cashapp/sqldelight-sqljs-worker/sqljs.worker.js", import.meta.url))""")
+internal fun jsWorker(): Worker = js("""new Worker(new URL("@wireapp/sqldelight-sqljs-worker/sqljs.worker.js", import.meta.url))""")
