@@ -4,7 +4,7 @@ First apply the gradle plugin in your project{% if dialect %} and set your datab
 === "Kotlin"
     ```kotlin
     plugins {
-      id("app.cash.sqldelight") version "{{ versions.sqldelight }}"
+      id("com.wire.sqldelight") version "{{ versions.sqldelight }}"
     }
      
     repositories {
@@ -25,7 +25,7 @@ First apply the gradle plugin in your project{% if dialect %} and set your datab
 === "Groovy"
     ```groovy
     plugins {
-      id "app.cash.sqldelight" version "{{ versions.sqldelight }}"
+      id "com.wire.sqldelight" version "{{ versions.sqldelight }}"
     }
 
     repositories {

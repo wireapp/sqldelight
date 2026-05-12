@@ -24,7 +24,7 @@ dependencyResolutionManagement {
     // If you want to use the test projects as standalone samples, link the Gradle project in IntelliJ
     // and overwrite this version.
     val sqldelightVersion: String by settings
-    plugin("sqldelight", "app.cash.sqldelight").version(sqldelightVersion)
+    plugin("sqldelight", "com.wire.sqldelight").version(sqldelightVersion)
   }
 
   repositories {

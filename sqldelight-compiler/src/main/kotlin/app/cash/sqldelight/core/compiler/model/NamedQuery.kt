@@ -30,7 +30,6 @@ import app.cash.sqldelight.core.lang.util.name
 import app.cash.sqldelight.core.lang.util.sqFile
 import app.cash.sqldelight.core.lang.util.tablesObserved
 import app.cash.sqldelight.core.lang.util.type
-import com.alecstrong.sql.psi.core.AnnotationException
 import app.cash.sqldelight.core.psi.SqlDelightStmtClojureStmtList
 import app.cash.sqldelight.dialect.api.IntermediateType
 import app.cash.sqldelight.dialect.api.PrimitiveType.ARGUMENT
@@ -42,6 +41,7 @@ import app.cash.sqldelight.dialect.api.PrimitiveType.REAL
 import app.cash.sqldelight.dialect.api.PrimitiveType.TEXT
 import app.cash.sqldelight.dialect.api.QueryWithResults
 import app.cash.sqldelight.dialect.api.SelectQueryable
+import com.alecstrong.sql.psi.core.AnnotationException
 import com.alecstrong.sql.psi.core.psi.NamedElement
 import com.alecstrong.sql.psi.core.psi.QueryElement
 import com.alecstrong.sql.psi.core.psi.SqlCompoundSelectStmt
