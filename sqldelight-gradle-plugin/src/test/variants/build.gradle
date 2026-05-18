@@ -3,9 +3,6 @@ plugins {
   alias(libs.plugins.sqldelight)
 }
 
-apply plugin: 'com.android.application'
-apply plugin: 'app.cash.sqldelight'
-
 android {
   namespace = "com.example.sqldelight"
 
@@ -45,6 +42,14 @@ android {
     }
     minApi23 {
       dimension "api"
+    }
+  }
+}
+
+sqldelight {
+  databases {
+    Database {
+      packageName = "com.example.sqldelight"
     }
   }
 }

@@ -1,5 +1,6 @@
 package app.cash.sqldelight.tests
 
+import app.cash.sqldelight.ARTIFACT_GROUP
 import app.cash.sqldelight.withCommonConfiguration
 import com.google.common.truth.Truth.assertThat
 import java.io.File
@@ -63,7 +64,7 @@ class PluginTest {
     val dependenciesResult = runner
       .withArguments("dependencies", "--stacktrace")
       .build()
-    assertThat(dependenciesResult.output).contains("app.cash.sqldelight:runtime:")
+    assertThat(dependenciesResult.output).contains("$ARTIFACT_GROUP:runtime:")
   }
 
   @Test
@@ -80,7 +81,7 @@ class PluginTest {
     val dependenciesResult = runner
       .withArguments("dependencies", "--stacktrace")
       .build()
-    assertThat(dependenciesResult.output).contains("app.cash.sqldelight:runtime")
+    assertThat(dependenciesResult.output).contains("$ARTIFACT_GROUP:runtime")
   }
 
   @Test
