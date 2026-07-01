@@ -195,6 +195,256 @@ class CustomKeyTest {
     assertThat(queries).doesNotContain("notifyQueries")
   }
 
+  @Test fun `grouped mutation with notify keys inside group generates notifyListeners after transaction`() {
+    val result = FixtureCompiler.compileSql(
+      """
+      |CREATE TABLE Message (
+      |  id TEXT NOT NULL PRIMARY KEY,
+      |  conversation_id TEXT NOT NULL,
+      |  visibility TEXT NOT NULL
+      |);
+      |
+      |CREATE TABLE MessageTextContent (
+      |  message_id TEXT NOT NULL,
+      |  conversation_id TEXT NOT NULL
+      |);
+      |
+      |markMessageAsDeleted {
+      |-- @NotifyCustomKey message_list_:conversation_id
+      |-- @NotifyCustomKey conversation_list_last_message
+      |-- @NotifyCustomKey Message
+      |UPDATE Message
+      |SET visibility = 'DELETED'
+      |WHERE id = :message_id AND conversation_id = :conversation_id;
+      |
+      |DELETE FROM MessageTextContent
+      |WHERE message_id = :message_id AND conversation_id = :conversation_id;
+      |}
+      """.trimMargin(),
+      tempFolder,
+      fileName = "Message.sq",
+      enableCustomQueryKeys = true,
+    )
+
+    assertThat(result.errors).isEmpty()
+    val queriesFile = File(result.outputDirectory, "com/example/MessageQueries.kt")
+    assertThat(result.compilerOutput).containsKey(queriesFile)
+    val queries = result.compilerOutput[queriesFile].toString()
+    assertThat(queries).contains(
+      """
+      |  }.also {
+      |    driver.notifyListeners("message_list_" + conversation_id)
+      |    driver.notifyListeners("conversation_list_last_message")
+      |    driver.notifyListeners("Message")
+      |  }
+      """.trimMargin(),
+    )
+    assertThat(queries).doesNotContain("notifyQueries")
+  }
+
+  @Test fun `grouped mutation with notify keys before group generates notifyListeners after transaction`() {
+    val result = FixtureCompiler.compileSql(
+      """
+      |CREATE TABLE Asset (
+      |  key TEXT NOT NULL PRIMARY KEY
+      |);
+      |
+      |CREATE TABLE MessageAssetContent (
+      |  asset_id TEXT NOT NULL,
+      |  conversation_id TEXT NOT NULL
+      |);
+      |
+      |CREATE TABLE Message (
+      |  id TEXT NOT NULL PRIMARY KEY,
+      |  conversation_id TEXT NOT NULL
+      |);
+      |
+      |clearContent
+      |-- @NotifyCustomKey message_list_:conversationId
+      |-- @NotifyCustomKey conversation_list_last_message
+      |{
+      |DELETE FROM Asset WHERE key IN (
+      |  SELECT asset_id FROM MessageAssetContent WHERE conversation_id = :conversationId
+      |);
+      |DELETE FROM Message WHERE conversation_id = :conversationId;
+      |}
+      """.trimMargin(),
+      tempFolder,
+      fileName = "Message.sq",
+      enableCustomQueryKeys = true,
+    )
+
+    assertThat(result.errors).isEmpty()
+    val queriesFile = File(result.outputDirectory, "com/example/MessageQueries.kt")
+    assertThat(result.compilerOutput).containsKey(queriesFile)
+    val queries = result.compilerOutput[queriesFile].toString()
+    assertThat(queries).contains(
+      """
+      |  }.also {
+      |    driver.notifyListeners("message_list_" + conversationId)
+      |    driver.notifyListeners("conversation_list_last_message")
+      |  }
+      """.trimMargin(),
+    )
+    assertThat(queries).doesNotContain("notifyQueries")
+  }
+
+  @Test fun `grouped query with result and notify keys generates notifyListeners after transaction`() {
+    val result = FixtureCompiler.compileSql(
+      """
+      |CREATE TABLE message (
+      |  id TEXT NOT NULL PRIMARY KEY,
+      |  conversation_id TEXT NOT NULL,
+      |  content TEXT NOT NULL
+      |);
+      |
+      |insertAndReturn {
+      |-- @NotifyCustomKey conversation_:conversation_id
+      |INSERT INTO message (id, conversation_id, content)
+      |VALUES (:id, :conversation_id, :content);
+      |
+      |SELECT id, conversation_id, content
+      |FROM message
+      |WHERE id = :id;
+      |}
+      """.trimMargin(),
+      tempFolder,
+      fileName = "Message.sq",
+      enableCustomQueryKeys = true,
+    )
+
+    assertThat(result.errors).isEmpty()
+    val queriesFile = File(result.outputDirectory, "com/example/MessageQueries.kt")
+    assertThat(result.compilerOutput).containsKey(queriesFile)
+    val queries = result.compilerOutput[queriesFile].toString()
+    assertThat(queries).contains("""driver.notifyListeners("conversation_" + conversation_id)""")
+    assertThat(queries).doesNotContain("notifyQueries")
+  }
+
+  @Test fun `grouped query with result validates notify key parameters`() {
+    val exception = assertFailsWith<Throwable> {
+      FixtureCompiler.compileSql(
+        """
+        |CREATE TABLE message (
+        |  id TEXT NOT NULL PRIMARY KEY,
+        |  conversation_id TEXT NOT NULL
+        |);
+        |
+        |insertAndReturn {
+        |-- @NotifyCustomKey conversation_:missing_param
+        |INSERT INTO message (id, conversation_id)
+        |VALUES (:id, :conversation_id);
+        |
+        |SELECT id, conversation_id
+        |FROM message
+        |WHERE id = :id;
+        |}
+        """.trimMargin(),
+        tempFolder,
+        fileName = "Message.sq",
+        enableCustomQueryKeys = true,
+      )
+    }
+
+    val errorMessage = exception.cause?.message ?: exception.message ?: ""
+    assertThat(errorMessage).contains(":missing_param")
+    assertThat(errorMessage).contains("insertAndReturn")
+  }
+
+  @Test fun `grouped mutation notify key can reference parameter from later statement`() {
+    val result = FixtureCompiler.compileSql(
+      """
+      |CREATE TABLE message (
+      |  id TEXT NOT NULL PRIMARY KEY,
+      |  conversation_id TEXT NOT NULL
+      |);
+      |
+      |CREATE TABLE messageTextContent (
+      |  message_id TEXT NOT NULL,
+      |  conversation_id TEXT NOT NULL
+      |);
+      |
+      |clearContent {
+      |-- @NotifyCustomKey conversation_:conversation_id
+      |DELETE FROM message
+      |WHERE id = :id;
+      |
+      |DELETE FROM messageTextContent
+      |WHERE conversation_id = :conversation_id;
+      |}
+      """.trimMargin(),
+      tempFolder,
+      fileName = "Message.sq",
+      enableCustomQueryKeys = true,
+    )
+
+    assertThat(result.errors).isEmpty()
+    val queriesFile = File(result.outputDirectory, "com/example/MessageQueries.kt")
+    assertThat(result.compilerOutput).containsKey(queriesFile)
+    val queries = result.compilerOutput[queriesFile].toString()
+    assertThat(queries).contains("""driver.notifyListeners("conversation_" + conversation_id)""")
+    assertThat(queries).doesNotContain("notifyQueries")
+  }
+
+  @Test fun `notify key before non-first grouped statement is ignored`() {
+    val result = FixtureCompiler.compileSql(
+      """
+      |CREATE TABLE message (
+      |  id TEXT NOT NULL PRIMARY KEY,
+      |  conversation_id TEXT NOT NULL
+      |);
+      |
+      |clearContent {
+      |DELETE FROM message
+      |WHERE id = :id;
+      |
+      |-- @NotifyCustomKey conversation_:conversation_id
+      |DELETE FROM message
+      |WHERE conversation_id = :conversation_id;
+      |}
+      """.trimMargin(),
+      tempFolder,
+      fileName = "Message.sq",
+      enableCustomQueryKeys = true,
+    )
+
+    assertThat(result.errors).isEmpty()
+    val queriesFile = File(result.outputDirectory, "com/example/MessageQueries.kt")
+    assertThat(result.compilerOutput).containsKey(queriesFile)
+    val queries = result.compilerOutput[queriesFile].toString()
+    assertThat(queries).doesNotContain("""driver.notifyListeners("conversation_""")
+    assertThat(queries).contains("notifyQueries")
+  }
+
+  @Test fun `notify key before single statement label is not attributed to that statement`() {
+    val result = FixtureCompiler.compileSql(
+      """
+      |CREATE TABLE message (
+      |  id TEXT NOT NULL PRIMARY KEY,
+      |  content TEXT NOT NULL
+      |);
+      |
+      |selectAll:
+      |SELECT * FROM message;
+      |
+      |-- @NotifyCustomKey message_:id
+      |insertMessage:
+      |INSERT INTO message (id, content)
+      |VALUES (:id, :content);
+      """.trimMargin(),
+      tempFolder,
+      fileName = "Message.sq",
+      enableCustomQueryKeys = true,
+    )
+
+    assertThat(result.errors).isEmpty()
+    val queriesFile = File(result.outputDirectory, "com/example/MessageQueries.kt")
+    assertThat(result.compilerOutput).containsKey(queriesFile)
+    val queries = result.compilerOutput[queriesFile].toString()
+    assertThat(queries).doesNotContain("""driver.notifyListeners("message_" + id)""")
+    assertThat(queries).contains("notifyQueries")
+  }
+
   @Test fun `custom key with invalid parameter reference fails`() {
     val exception = assertFailsWith<Throwable> {
       FixtureCompiler.compileSql(

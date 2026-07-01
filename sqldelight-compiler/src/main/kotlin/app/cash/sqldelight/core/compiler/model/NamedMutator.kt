@@ -18,13 +18,10 @@ package app.cash.sqldelight.core.compiler.model
 
 import app.cash.sqldelight.core.lang.SqlDelightQueriesFile
 import app.cash.sqldelight.core.lang.psi.StmtIdentifierMixin
-import app.cash.sqldelight.core.lang.util.CustomKeyAnnotation
 import app.cash.sqldelight.core.lang.util.TableNameElement
-import app.cash.sqldelight.core.lang.util.customKeyAnnotations
 import app.cash.sqldelight.core.lang.util.findChildRecursive
 import app.cash.sqldelight.core.lang.util.referencedTables
 import app.cash.sqldelight.core.lang.util.sqFile
-import com.alecstrong.sql.psi.core.AnnotationException
 import com.alecstrong.sql.psi.core.psi.SqlAnnotatedElement
 import com.alecstrong.sql.psi.core.psi.SqlDeleteStmtLimited
 import com.alecstrong.sql.psi.core.psi.SqlInsertStmt
@@ -41,41 +38,6 @@ sealed class NamedMutator(
 
   internal val tablesAffected: Collection<TableNameElement> by lazy {
     tableName.referencedTables()
-  }
-
-  /**
-   * Custom notification keys specified via @NotifyCustomKey annotations.
-   * When present, driver.notifyListeners() will be called with these keys
-   * after the mutation executes.
-   */
-  internal val customNotifyKeys: List<CustomKeyExpression>? by lazy {
-    extractCustomNotifyKeys()
-  }
-
-  private fun extractCustomNotifyKeys(): List<CustomKeyExpression>? {
-    // Check if feature is enabled
-    if (!statement.sqFile().enableCustomQueryKeys) return null
-
-    val annotations = statement.customKeyAnnotations()
-      .filter { it.annotationType == CustomKeyAnnotation.AnnotationType.NOTIFY_KEY }
-
-    if (annotations.isEmpty()) return null
-
-    // Validate that all referenced parameters exist in the mutation
-    val mutationParams = parameters.map { it.name }.toSet()
-    annotations.forEach { annotation ->
-      annotation.expression.referencedParameters().forEach { paramName ->
-        if (paramName !in mutationParams) {
-          throw AnnotationException(
-            msg = "Custom notify key references unknown parameter ':$paramName' in mutation '$name'. " +
-              "Available parameters: ${mutationParams.sorted().joinToString(", ") { ":$it" }}",
-            element = annotation.element,
-          )
-        }
-      }
-    }
-
-    return annotations.map { it.expression }
   }
 
   class Insert(

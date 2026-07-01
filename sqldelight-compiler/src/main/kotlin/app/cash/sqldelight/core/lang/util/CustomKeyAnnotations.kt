@@ -16,6 +16,7 @@
 package app.cash.sqldelight.core.lang.util
 
 import app.cash.sqldelight.core.compiler.model.CustomKeyExpression
+import app.cash.sqldelight.core.lang.psi.StmtIdentifierMixin
 import com.alecstrong.sql.psi.core.AnnotationException
 import com.alecstrong.sql.psi.core.psi.SqlAnnotatedElement
 import com.intellij.psi.PsiComment
@@ -49,42 +50,106 @@ data class CustomKeyAnnotation(
  *
  * This function looks for comments containing @CustomKey or @NotifyCustomKey annotations
  * and parses them into CustomKeyAnnotation objects.
+ * For grouped transaction statements, @NotifyCustomKey may be placed either between the
+ * group name and the opening `{`, or at the start of the grouped body before the first SQL
+ * statement. In both cases the annotations apply to the whole grouped transaction.
  *
  * @return List of CustomKeyAnnotation objects, in the order they appear in the comments
  */
 fun SqlAnnotatedElement.customKeyAnnotations(): List<CustomKeyAnnotation> {
   val annotations = mutableListOf<CustomKeyAnnotation>()
 
-  // Look for annotations in comments preceding the statement
-  // Comments are typically siblings of the parent (StatementValidatorMixin)
-  // and are represented as LeafPsiElement with text starting with "--"
+  // Comments before regular statements are siblings of the SqlStmt wrapper.
+  parent?.let { annotations += precedingSiblingAnnotations(it) }
 
-  // Check parent's siblings first (most common case)
-  if (parent != null) {
-    var sibling: PsiElement? = parent.prevSibling
+  // Comments inside grouped bodies are siblings of the first SqlStmt.
+  annotations += precedingSiblingAnnotations(this)
 
-    while (sibling != null) {
-      // Check if this is a comment (LeafPsiElement or PsiComment with text starting with "--")
-      val isComment = when (sibling) {
-        is PsiComment -> true
-        is LeafPsiElement -> sibling.text.trimStart().startsWith("--")
-        else -> false
-      }
+  // Comments before grouped bodies can live inside the grouped identifier node:
+  // groupedName
+  // -- @NotifyCustomKey key
+  // {
+  if (this is StmtIdentifierMixin) {
+    annotations += annotationsInSubtree(this)
+  }
 
-      if (isComment) {
-        parseCustomKeyAnnotation(sibling)?.let { annotations.add(it) }
-      }
+  // Comments immediately after the opening `{` are leading children of the grouped body:
+  // groupedName {
+  // -- @NotifyCustomKey key
+  // UPDATE ...
+  annotations += leadingChildAnnotations(this)
 
-      // Stop when we hit something that's not a comment or whitespace
-      if (sibling !is PsiWhiteSpace && !isComment) {
-        break
-      }
-      sibling = sibling.prevSibling
+  return annotations
+    .distinctBy { it.element }
+    .sortedBy { it.element.textRange?.startOffset ?: Int.MAX_VALUE }
+}
+
+private fun precedingSiblingAnnotations(element: PsiElement): List<CustomKeyAnnotation> {
+  val annotations = mutableListOf<CustomKeyAnnotation>()
+  var sibling: PsiElement? = element.prevSibling
+
+  while (sibling != null) {
+    val isComment = sibling.isSqlComment()
+
+    if (isComment) {
+      parseCustomKeyAnnotation(sibling)?.let { annotations.add(it) }
+    }
+
+    if (sibling !is PsiWhiteSpace && !isComment) {
+      break
+    }
+    sibling = sibling.prevSibling
+  }
+
+  return annotations
+}
+
+private fun leadingChildAnnotations(element: PsiElement): List<CustomKeyAnnotation> {
+  val annotations = mutableListOf<CustomKeyAnnotation>()
+  var child: PsiElement? = element.firstChild
+
+  while (child != null) {
+    val isComment = child.isSqlComment()
+
+    if (isComment) {
+      parseCustomKeyAnnotation(child)?.let { annotations.add(it) }
+    }
+
+    if (child !is PsiWhiteSpace && !isComment) {
+      break
+    }
+    child = child.nextSibling
+  }
+
+  return annotations
+}
+
+private fun annotationsInSubtree(element: PsiElement): List<CustomKeyAnnotation> {
+  val annotations = mutableListOf<CustomKeyAnnotation>()
+
+  fun visit(current: PsiElement) {
+    if (current.isSqlComment()) {
+      parseCustomKeyAnnotation(current)?.let { annotations.add(it) }
+      return
+    }
+
+    var child = current.firstChild
+    while (child != null) {
+      visit(child)
+      child = child.nextSibling
     }
   }
 
-  // Return annotations in the order they appeared (reverse the list since we walked backwards)
-  return annotations.reversed()
+  visit(element)
+  return annotations
+}
+
+private fun PsiElement.isSqlComment(): Boolean {
+  return when (this) {
+    is PsiComment -> true
+    is LeafPsiElement -> text.trimStart().startsWith("--")
+    else -> false
+  }
 }
 
 /**

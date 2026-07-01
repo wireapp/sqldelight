@@ -21,23 +21,28 @@ import app.cash.sqldelight.core.lang.acceptsTableInterface
 import app.cash.sqldelight.core.lang.psi.ColumnTypeMixin.ValueTypeDialectType
 import app.cash.sqldelight.core.lang.psi.StmtIdentifierMixin
 import app.cash.sqldelight.core.lang.types.typeResolver
+import app.cash.sqldelight.core.lang.util.CustomKeyAnnotation
 import app.cash.sqldelight.core.lang.util.argumentType
 import app.cash.sqldelight.core.lang.util.childOfType
 import app.cash.sqldelight.core.lang.util.columns
+import app.cash.sqldelight.core.lang.util.customKeyAnnotations
 import app.cash.sqldelight.core.lang.util.findChildrenOfType
 import app.cash.sqldelight.core.lang.util.sqFile
 import app.cash.sqldelight.core.lang.util.type
+import app.cash.sqldelight.core.psi.SqlDelightStmtClojureStmtList
 import app.cash.sqldelight.dialect.api.IntermediateType
 import app.cash.sqldelight.dialect.api.PrimitiveType.ARGUMENT
 import app.cash.sqldelight.dialect.api.PrimitiveType.BOOLEAN
 import app.cash.sqldelight.dialect.api.PrimitiveType.INTEGER
 import app.cash.sqldelight.dialect.api.PrimitiveType.NULL
 import app.cash.sqldelight.dialect.grammar.mixins.BindParameterMixin
+import com.alecstrong.sql.psi.core.AnnotationException
 import com.alecstrong.sql.psi.core.psi.SqlAnnotatedElement
 import com.alecstrong.sql.psi.core.psi.SqlBindExpr
 import com.alecstrong.sql.psi.core.psi.SqlBindParameter
 import com.alecstrong.sql.psi.core.psi.SqlIdentifier
 import com.alecstrong.sql.psi.core.psi.SqlInsertStmt
+import com.alecstrong.sql.psi.core.psi.SqlStmt
 import com.alecstrong.sql.psi.core.psi.SqlTypes
 import com.intellij.psi.PsiElement
 import com.squareup.kotlinpoet.ClassName
@@ -52,6 +57,56 @@ abstract class BindableQuery(
   abstract val id: Int
 
   internal val javadoc: PsiElement? = identifier?.childOfType(SqlTypes.JAVADOC)
+
+  /**
+   * Custom notification keys specified via @NotifyCustomKey annotations.
+   * When present, these replace the default table-based notifications.
+   */
+  internal val customNotifyKeys: List<CustomKeyExpression>? by lazy {
+    extractCustomNotifyKeys()
+  }
+
+  private fun extractCustomNotifyKeys(): List<CustomKeyExpression>? {
+    if (!statement.sqFile().enableCustomQueryKeys) return null
+
+    val annotations = notifyKeyAnnotations()
+      .distinctBy { it.element }
+      .sortedBy { it.element.textRange?.startOffset ?: Int.MAX_VALUE }
+      .filter { it.annotationType == CustomKeyAnnotation.AnnotationType.NOTIFY_KEY }
+
+    if (annotations.isEmpty()) return null
+
+    val statementParams = parameters.map { it.name }.toSet()
+    val statementName = identifier?.name ?: ""
+    annotations.forEach { annotation ->
+      annotation.expression.referencedParameters().forEach { paramName ->
+        if (paramName !in statementParams) {
+          throw AnnotationException(
+            msg = "Custom notify key references unknown parameter ':$paramName' in statement '$statementName'. " +
+              "Available parameters: ${statementParams.sorted().joinToString(", ") { ":$it" }}",
+            element = annotation.element,
+          )
+        }
+      }
+    }
+
+    return annotations.map { it.expression }
+  }
+
+  private fun notifyKeyAnnotations(): List<CustomKeyAnnotation> {
+    val annotations = mutableListOf<CustomKeyAnnotation>()
+    annotations += statement.customKeyAnnotations()
+
+    if (statement is SqlDelightStmtClojureStmtList) {
+      annotations += identifier?.customKeyAnnotations().orEmpty()
+      annotations += statement.children.filterIsInstance<SqlStmt>()
+        .firstOrNull()
+        ?.customKeyAnnotations()
+        .orEmpty()
+    }
+
+    return annotations
+  }
 
   /**
    * The collection of parameters exposed in the generated api for this query.

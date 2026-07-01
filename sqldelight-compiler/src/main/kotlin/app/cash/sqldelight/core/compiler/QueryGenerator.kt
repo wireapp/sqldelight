@@ -389,7 +389,7 @@ abstract class QueryGenerator(
   protected fun notifyQueriesBlock(): CodeBlock {
     return buildCodeBlock {
       // Notify custom keys if present
-      val hasCustomKeys = query is NamedMutator && query.customNotifyKeys != null
+      val hasCustomKeys = query.customNotifyKeys != null
 
       if (hasCustomKeys) {
         query.customNotifyKeys!!.forEach { expr ->
