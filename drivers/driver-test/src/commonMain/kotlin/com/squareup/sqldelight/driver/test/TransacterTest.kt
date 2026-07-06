@@ -1,5 +1,6 @@
 package com.squareup.sqldelight.driver.test
 
+import app.cash.sqldelight.Query
 import app.cash.sqldelight.TransacterImpl
 import app.cash.sqldelight.db.AfterVersion
 import app.cash.sqldelight.db.QueryResult
@@ -15,6 +16,7 @@ import kotlin.test.assertTrue
 abstract class TransacterTest {
   protected lateinit var transacter: TransacterImpl
   private lateinit var driver: SqlDriver
+  private lateinit var generatedQueries: GeneratedQueries
 
   abstract fun setupDatabase(schema: SqlSchema<QueryResult.Value<Unit>>): SqlDriver
 
@@ -22,7 +24,11 @@ abstract class TransacterTest {
     val driver = setupDatabase(
       object : SqlSchema<QueryResult.Value<Unit>> {
         override val version = 1L
-        override fun create(driver: SqlDriver): QueryResult.Value<Unit> = QueryResult.Unit
+        override fun create(driver: SqlDriver): QueryResult.Value<Unit> {
+          driver.execute(null, "CREATE TABLE Member (id INTEGER NOT NULL PRIMARY KEY)", 0)
+          return QueryResult.Unit
+        }
+
         override fun migrate(
           driver: SqlDriver,
           oldVersion: Long,
@@ -31,7 +37,8 @@ abstract class TransacterTest {
         ): QueryResult.Value<Unit> = QueryResult.Unit
       },
     )
-    transacter = object : TransacterImpl(driver) {}
+    generatedQueries = GeneratedQueries(driver)
+    transacter = generatedQueries
     this.driver = driver
   }
 
@@ -223,5 +230,83 @@ abstract class TransacterTest {
     }
 
     assertEquals(result, "rollback")
+  }
+
+  @Test
+  fun customNotifyKeyOutsideTransactionNotifiesImmediately() {
+    val calledInTransaction = mutableListOf<Boolean>()
+    val listener = Query.Listener {
+      calledInTransaction += driver.currentTransaction() != null
+    }
+
+    driver.addListener("Member", listener = listener)
+
+    generatedQueries.deleteMember()
+
+    assertEquals(listOf(false), calledInTransaction)
+  }
+
+  @Test
+  fun customNotifyKeyInsideTransactionWithResultNotifiesAfterCommit() {
+    val calledInTransaction = mutableListOf<Boolean>()
+    val listener = Query.Listener {
+      calledInTransaction += driver.currentTransaction() != null
+    }
+
+    driver.addListener("Member", listener = listener)
+
+    val result = transacter.transactionWithResult {
+      generatedQueries.deleteMember()
+      assertTrue(calledInTransaction.isEmpty())
+      "committed"
+    }
+
+    assertEquals("committed", result)
+    assertEquals(listOf(false), calledInTransaction)
+  }
+
+  @Test
+  fun customNotifyKeyInsideTransactionNotifiesAfterOutermostCommit() {
+    val calledInTransaction = mutableListOf<Boolean>()
+    val listener = Query.Listener {
+      calledInTransaction += driver.currentTransaction() != null
+    }
+
+    driver.addListener("Member", listener = listener)
+
+    transacter.transaction {
+      transaction {
+        generatedQueries.deleteMember()
+      }
+
+      assertTrue(calledInTransaction.isEmpty())
+    }
+
+    assertEquals(listOf(false), calledInTransaction)
+  }
+
+  @Test
+  fun customNotifyKeyDoesNotNotifyAfterRollback() {
+    val calledInTransaction = mutableListOf<Boolean>()
+    val listener = Query.Listener {
+      calledInTransaction += driver.currentTransaction() != null
+    }
+
+    driver.addListener("Member", listener = listener)
+
+    transacter.transaction {
+      generatedQueries.deleteMember()
+      rollback()
+    }
+
+    assertTrue(calledInTransaction.isEmpty())
+  }
+
+  private class GeneratedQueries(driver: SqlDriver) : TransacterImpl(driver) {
+    fun deleteMember(): QueryResult<Long> {
+      val result = driver.execute(null, "DELETE FROM Member", 0)
+      notifyQueries("Member")
+      return result
+    }
   }
 }

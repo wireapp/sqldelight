@@ -3,6 +3,7 @@ public abstract class app/cash/sqldelight/BaseTransacterImpl {
 	protected final fun createArguments (I)Ljava/lang/String;
 	protected final fun getDriver ()Lapp/cash/sqldelight/db/SqlDriver;
 	protected final fun notifyQueries (ILkotlin/jvm/functions/Function1;)V
+	protected final fun notifyQueries ([Ljava/lang/String;)V
 	protected final fun postTransactionCleanup (Lapp/cash/sqldelight/Transacter$Transaction;Lapp/cash/sqldelight/Transacter$Transaction;Ljava/lang/Throwable;Ljava/lang/Object;)Ljava/lang/Object;
 }
 

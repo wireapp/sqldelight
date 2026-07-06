@@ -135,7 +135,7 @@ class CustomKeyTest {
     assertThat(queries).contains("""arrayOf("message")""")
   }
 
-  @Test fun `mutation with custom notify key generates notifyListeners call`() {
+  @Test fun `mutation with custom notify key generates transaction-aware notifyQueries call`() {
     val result = FixtureCompiler.compileSql(
       """
       |CREATE TABLE message (
@@ -158,13 +158,38 @@ class CustomKeyTest {
     val queriesFile = File(result.outputDirectory, "com/example/MessageQueries.kt")
     assertThat(result.compilerOutput).containsKey(queriesFile)
     val queries = result.compilerOutput[queriesFile].toString()
-    // Should notify custom key
-    assertThat(queries).contains("""driver.notifyListeners("conversation_" + conversation_id)""")
+    // Should notify custom key through the transaction-aware path
+    assertThat(queries).contains("""notifyQueries("conversation_" + conversation_id)""")
     // Should NOT notify table-based listeners when custom keys are used
-    assertThat(queries).doesNotContain("notifyQueries")
+    assertThat(queries).doesNotContain("driver.notifyListeners")
   }
 
-  @Test fun `mutation with multiple notify keys generates multiple notifyListeners calls`() {
+  @Test fun `mutation with literal custom notify key generates transaction-aware notifyQueries call`() {
+    val result = FixtureCompiler.compileSql(
+      """
+      |CREATE TABLE Member (
+      |  id TEXT NOT NULL PRIMARY KEY
+      |);
+      |
+      |deleteMember:
+      |-- @NotifyCustomKey Member
+      |DELETE FROM Member
+      |WHERE id = :id;
+      """.trimMargin(),
+      tempFolder,
+      fileName = "Member.sq",
+      enableCustomQueryKeys = true,
+    )
+
+    assertThat(result.errors).isEmpty()
+    val queriesFile = File(result.outputDirectory, "com/example/MemberQueries.kt")
+    assertThat(result.compilerOutput).containsKey(queriesFile)
+    val queries = result.compilerOutput[queriesFile].toString()
+    assertThat(queries).contains("""notifyQueries("Member")""")
+    assertThat(queries).doesNotContain("driver.notifyListeners")
+  }
+
+  @Test fun `mutation with multiple notify keys generates transaction-aware notifyQueries call`() {
     val result = FixtureCompiler.compileSql(
       """
       |CREATE TABLE message (
@@ -189,13 +214,12 @@ class CustomKeyTest {
     assertThat(result.compilerOutput).containsKey(queriesFile)
     val queries = result.compilerOutput[queriesFile].toString()
     // Should notify both custom keys
-    assertThat(queries).contains("""driver.notifyListeners("conversation_" + conversation_id)""")
-    assertThat(queries).contains("""driver.notifyListeners("message_" + id)""")
+    assertThat(queries).contains("""notifyQueries("conversation_" + conversation_id, "message_" + id)""")
     // Should NOT notify table-based listeners when custom keys are used
-    assertThat(queries).doesNotContain("notifyQueries")
+    assertThat(queries).doesNotContain("driver.notifyListeners")
   }
 
-  @Test fun `grouped mutation with notify keys inside group generates notifyListeners after transaction`() {
+  @Test fun `grouped mutation with notify keys inside group generates notifyQueries after transaction`() {
     val result = FixtureCompiler.compileSql(
       """
       |CREATE TABLE Message (
@@ -233,16 +257,14 @@ class CustomKeyTest {
     assertThat(queries).contains(
       """
       |  }.also {
-      |    driver.notifyListeners("message_list_" + conversation_id)
-      |    driver.notifyListeners("conversation_list_last_message")
-      |    driver.notifyListeners("Message")
+      |    notifyQueries("message_list_" + conversation_id, "conversation_list_last_message", "Message")
       |  }
       """.trimMargin(),
     )
-    assertThat(queries).doesNotContain("notifyQueries")
+    assertThat(queries).doesNotContain("driver.notifyListeners")
   }
 
-  @Test fun `grouped mutation with notify keys before group generates notifyListeners after transaction`() {
+  @Test fun `grouped mutation with notify keys before group generates notifyQueries after transaction`() {
     val result = FixtureCompiler.compileSql(
       """
       |CREATE TABLE Asset (
@@ -281,15 +303,14 @@ class CustomKeyTest {
     assertThat(queries).contains(
       """
       |  }.also {
-      |    driver.notifyListeners("message_list_" + conversationId)
-      |    driver.notifyListeners("conversation_list_last_message")
+      |    notifyQueries("message_list_" + conversationId, "conversation_list_last_message")
       |  }
       """.trimMargin(),
     )
-    assertThat(queries).doesNotContain("notifyQueries")
+    assertThat(queries).doesNotContain("driver.notifyListeners")
   }
 
-  @Test fun `grouped query with result and notify keys generates notifyListeners after transaction`() {
+  @Test fun `grouped query with result and notify keys generates notifyQueries after transaction`() {
     val result = FixtureCompiler.compileSql(
       """
       |CREATE TABLE message (
@@ -317,8 +338,8 @@ class CustomKeyTest {
     val queriesFile = File(result.outputDirectory, "com/example/MessageQueries.kt")
     assertThat(result.compilerOutput).containsKey(queriesFile)
     val queries = result.compilerOutput[queriesFile].toString()
-    assertThat(queries).contains("""driver.notifyListeners("conversation_" + conversation_id)""")
-    assertThat(queries).doesNotContain("notifyQueries")
+    assertThat(queries).contains("""notifyQueries("conversation_" + conversation_id)""")
+    assertThat(queries).doesNotContain("driver.notifyListeners")
   }
 
   @Test fun `grouped query with result validates notify key parameters`() {
@@ -382,8 +403,8 @@ class CustomKeyTest {
     val queriesFile = File(result.outputDirectory, "com/example/MessageQueries.kt")
     assertThat(result.compilerOutput).containsKey(queriesFile)
     val queries = result.compilerOutput[queriesFile].toString()
-    assertThat(queries).contains("""driver.notifyListeners("conversation_" + conversation_id)""")
-    assertThat(queries).doesNotContain("notifyQueries")
+    assertThat(queries).contains("""notifyQueries("conversation_" + conversation_id)""")
+    assertThat(queries).doesNotContain("driver.notifyListeners")
   }
 
   @Test fun `notify key before non-first grouped statement is ignored`() {
@@ -606,9 +627,38 @@ class CustomKeyTest {
 
     // Should NOT contain custom key notification code
     assertThat(queries).doesNotContain("""driver.notifyListeners("conversation_""")
+    assertThat(queries).doesNotContain("""notifyQueries("conversation_""")
 
     // Should use standard table-based notification
     assertThat(queries).contains("notifyQueries")
     assertThat(queries).contains("""emit("message")""")
+  }
+
+  @Test fun `literal custom notify key is ignored when feature flag is disabled`() {
+    val result = FixtureCompiler.compileSql(
+      """
+      |CREATE TABLE Member (
+      |  id TEXT NOT NULL PRIMARY KEY
+      |);
+      |
+      |deleteMember:
+      |-- @NotifyCustomKey Member
+      |DELETE FROM Member
+      |WHERE id = :id;
+      """.trimMargin(),
+      tempFolder,
+      fileName = "Member.sq",
+      enableCustomQueryKeys = false,
+    )
+
+    assertThat(result.errors).isEmpty()
+    val queriesFile = File(result.outputDirectory, "com/example/MemberQueries.kt")
+    assertThat(result.compilerOutput).containsKey(queriesFile)
+    val queries = result.compilerOutput[queriesFile].toString()
+
+    assertThat(queries).doesNotContain("""notifyQueries("Member")""")
+    assertThat(queries).doesNotContain("""driver.notifyListeners("Member")""")
+    assertThat(queries).contains("notifyQueries")
+    assertThat(queries).contains("""emit("Member")""")
   }
 }

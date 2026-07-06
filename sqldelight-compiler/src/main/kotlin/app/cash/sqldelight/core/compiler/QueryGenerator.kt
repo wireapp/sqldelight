@@ -392,9 +392,8 @@ abstract class QueryGenerator(
       val hasCustomKeys = query.customNotifyKeys != null
 
       if (hasCustomKeys) {
-        query.customNotifyKeys!!.forEach { expr ->
-          addStatement("$DRIVER_NAME.notifyListeners(%L)", customKeyExpressionCode(expr))
-        }
+        val keys = query.customNotifyKeys!!.map(::customKeyExpressionCode)
+        addStatement("notifyQueries(%L)", keys.joinToCode(", "))
       } else if (tablesUpdated().isNotEmpty()) {
         // Only notify table-based listeners when custom keys are not used
         beginControlFlow("notifyQueries(%L) { emit ->", query.id)
