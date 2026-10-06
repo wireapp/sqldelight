@@ -10,8 +10,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALUSERNAME }}
-  ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALPASSWORD }}
   ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYID }}
   ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEY }}
   ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYPASSWORD }}
@@ -23,6 +21,7 @@ jobs:
     if: github.repository == 'wireapp/sqldelight'
     permissions:
       contents: read
+      id-token: write
 
     steps:
       - uses: actions/checkout@v6
@@ -34,22 +33,35 @@ jobs:
         with:
           cache-cleanup: always
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
+        with:
+          role-to-assume: arn:aws:iam::093205192929:role/gh-actions-maven-publish-sqldelight
+          aws-region: us-east-1
+
       - name: Set version from tag
         run: echo "ORG_GRADLE_PROJECT_VERSION_NAME=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
 
-      - run: ./gradlew publishToMavenLocal
+      - name: Seed publish dir from S3
+        run: aws s3 cp s3://maven-wire-com/com/wire/sqldelight/ build/maven-publish/com/wire/sqldelight/ --recursive --no-overwrite --quiet
+
+      - name: Publish to Wire Maven (local staging)
+        run: ./gradlew publishAllPublicationsToWireStagingRepository --no-parallel
         env:
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALUSERNAME }}
-          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALPASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYPASSWORD }}
 
-      - run: ./gradlew publishToMavenCentral --no-parallel
+      - name: Sync artifacts to S3
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if aws s3 ls "s3://maven-wire-com/com/wire/sqldelight/${VERSION}/" >/dev/null 2>&1; then
+            echo "Version ${VERSION} already exists in Wire Maven repository, skipping publish"
+            exit 1
+          fi
+          aws s3 cp build/maven-publish s3://maven-wire-com/ --recursive --include "maven-metadata.xml"
+          aws s3 cp build/maven-publish s3://maven-wire-com/ --recursive --exclude "maven-metadata.xml*" --exclude "*.sha1" --exclude "*.md5" --exclude "*.sha256" --exclude "*.sha512" --no-overwrite
         env:
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALUSERNAME }}
-          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.ORG_GRADLE_PROJECT_MAVENCENTRALPASSWORD }}
-          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEY }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGINMEMORYKEYPASSWORD }}
+          AWS_REGION: us-east-1
 
   publish_npm_packages:
     runs-on: ubuntu-latest
