@@ -4,6 +4,10 @@ publishing {
             name = "installLocally"
             url = "${rootProject.buildDir}/localMaven"
         }
+        maven {
+            name = "wireStaging"
+            url = "${rootProject.buildDir}/maven-publish"
+        }
         /**
          * Want to push to an internal repository for testing?
          * Set the following properties in ~/.gradle/gradle.properties.
