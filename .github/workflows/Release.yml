@@ -54,7 +54,7 @@ jobs:
       - name: Sync artifacts to S3
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          if aws s3 ls "s3://maven-wire-com/com/wire/sqldelight/${VERSION}/" >/dev/null 2>&1; then
+          if aws s3 ls "s3://maven-wire-com/com/wire/sqldelight/runtime/${VERSION}/" >/dev/null 2>&1; then
             echo "Version ${VERSION} already exists in Wire Maven repository, skipping publish"
             exit 1
           fi
