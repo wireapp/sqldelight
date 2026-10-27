@@ -58,8 +58,8 @@ jobs:
             echo "Version ${VERSION} already exists in Wire Maven repository, skipping publish"
             exit 1
           fi
-          aws s3 cp build/maven-publish s3://maven-wire-com/ --recursive --include "maven-metadata.xml"
-          aws s3 cp build/maven-publish s3://maven-wire-com/ --recursive --exclude "maven-metadata.xml*" --exclude "*.sha1" --exclude "*.md5" --exclude "*.sha256" --exclude "*.sha512" --no-overwrite
+          aws s3 cp build/maven-publish s3://maven-wire-com/ --recursive --exclude "*" --include "*/maven-metadata.xml*"
+          aws s3 cp build/maven-publish s3://maven-wire-com/ --recursive --exclude "*/maven-metadata.xml*" --no-overwrite
         env:
           AWS_REGION: us-east-1
 
