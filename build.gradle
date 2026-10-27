@@ -64,11 +64,6 @@ allprojects {
     args.addAll(["--mutex", "file:${file("build/.yarn-mutex")}".toString()])
   }
 
-  // https://youtrack.jetbrains.com/issue/KT-46466
-  tasks.withType(org.gradle.api.publish.maven.tasks.AbstractPublishToMaven).configureEach {
-    dependsOn(tasks.withType(Sign))
-  }
-
   configurations.configureEach {
     exclude group: 'com.jetbrains.rd'
     exclude group: 'com.github.jetbrains', module: 'jetCheck'
